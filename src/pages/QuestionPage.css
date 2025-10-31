@@ -1,0 +1,272 @@
+.question-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    font-family: Arial, Helvetica, sans-serif
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0 0.5rem;
+    background: #ffffff;
+    border-bottom: 2px solid #c0c0c0
+}
+
+.sections .section {
+    padding: 6px 10px;
+    border: 1px solid transparent;
+    border-radius: 3px;
+}
+
+.sections .active {
+    background: #1565c0;
+    color: #fff;
+    border-color: #1565c0
+}
+
+.timer {
+    color: #d32f2f;
+    font-weight: 600
+}
+
+.main-area {
+   display: grid;
+  height: 100%;
+  width: 100vw; 
+  margin: 0;
+  padding: 0px;
+  grid-template-columns: 2fr 3fr 1fr; 
+  transition: grid-template-columns 0.3s ease;
+}
+
+.main-area.no-passage .passage-panel {
+  display: none;
+}
+
+.main-area.no-passage {
+    grid-template-columns: 0fr 5fr 1fr;
+}
+
+.passage-placeholder {
+    background: transparent
+}
+
+.question-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  box-sizing: border-box;
+}
+
+.meta {
+    font-size: 12px;
+    color: #555;
+    margin-bottom: 0.5rem
+}
+
+.question-text {
+    font-weight: 600;
+    margin: 0.75rem 0 1rem;
+}
+
+.side-panel {
+    background: #f5f5f5
+}
+
+.side-panel {
+    flex: 1;
+    max-width: 220px;
+    border-left: 1px solid #ddd;
+    padding: 1rem;
+    display: flex;
+    flex-direction: column;
+    
+}
+
+.avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: #ffeb3b;
+    margin: 0 auto 1rem
+}
+
+.legend {
+    list-style: none;
+    padding: 0;
+    font-size: 12px
+}
+
+.legend .box {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 4px;
+    border: 1px solid #ccc
+}
+
+.box.not-visited {
+    background: #e0e0e0
+}
+
+.box.not-answered {
+    background: #f44336
+}
+
+.box.answered {
+    background: #4caf50
+}
+
+.palette {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    margin: 1rem 0
+}
+
+.pal-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    font-weight: 600
+}
+
+.pal-btn.current {
+    background: #1565c0;
+    color: #fff;
+    border: 2px solid #000
+}
+
+.pal-btn.answered {
+    background: #43a047;
+    color: #fff
+}
+
+.pal-btn.not-visited {
+    background: #b0bec5;
+    color: #000
+}
+
+.pal-btn.not-answered {
+    background: #e53935;
+    color: #fff
+}
+
+.pal-btn.answered {
+    background: #43a047;
+    color: #fff
+}
+
+.pal-btn.visited {
+    background: #fb8c00;
+    color: #fff
+}
+
+.options {
+    list-style: none;
+    padding: 0
+}
+
+.option-btn {
+    padding: 10px;
+    border: 1px solid #9e9e9e;
+    border-radius: 3px;
+    background: #fafafa;
+    transition: background 0.2s
+}
+
+.option-btn:hover {
+    background: #e3f2fd
+}
+
+.option-btn:disabled {
+    background: #c8e6c9;
+    border-color: #388e3c
+}
+
+.actions {
+    margin-top: 1rem;
+    display: flex;
+    gap: 1rem
+}
+
+.actions .btn {
+    background: #1565c0
+}
+
+.actions .btn:nth-child(2) {
+    background: #9e9e9e
+}
+
+.btn {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 4px;
+    background: #1976d2;
+    color: #fff;
+    cursor: pointer
+}
+
+/* passage layout */
+.passage-panel {
+    border-right: 1px solid #ddd;
+    padding: 1rem;
+    overflow: auto
+}
+
+.submit .btn {
+    width: 100%;
+    background: #1565c0
+}
+
+.option-radio {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border: 1px solid #9e9e9e;
+    border-radius: 3px;
+    background: #fafafa;
+    margin-bottom: 8px;
+    cursor: pointer
+}
+
+.option-radio input {
+    accent-color: #1565c0
+}
+
+.option-radio:hover {
+    background: #e3f2fd
+}
+
+.calc-toggle {
+    background: #ff9800
+}
+
+.sections {
+    flex: 1;
+    display: flex;
+    gap: 4px
+}
+
+.main-area.no-passage .question-content {
+     grid-column: 2 / 3;
+  padding: 1.5rem 3rem; 
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .main-area.with-passage {
+    grid-template-columns: 1fr;
+  }
+  .passage-panel, .side-panel {
+    order: 2;
+  }
+  .question-content {
+    order: 1;
+  }
+}
