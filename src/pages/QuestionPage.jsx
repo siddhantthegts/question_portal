@@ -60,7 +60,7 @@ function QuestionPage() {
             </span>
           ))}
         </nav>
-        <div className="timer">Time Left : 00:39:00</div>
+        <div className="timer">Time Left : 2:00 </div>
         <button className="btn calc-toggle" onClick={() => setShowCalc(true)}>Calculator</button>
       </header>
 

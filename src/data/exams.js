@@ -2,14 +2,15 @@ import passages from './passages';
 
 const exams = [
   {
-    examId: 1,
+    examId: 100,
     examName: 'Mock CAT 2025',
-    totalTime: 120 * 60, // seconds
+    examType: 'CAT',
+    totalTime: 120 * 60, 
     sections: [
       {
         sectionId: 1,
         sectionName: 'Verbal Ability and Reading Comprehension',
-        time: 40 * 60,
+        time: .1 * 60,
         questions: [
           {
             questionId: 1,
@@ -52,7 +53,7 @@ const exams = [
       {
         sectionId: 2,
         sectionName: 'Quantitative Ability',
-        time: 40 * 60,
+        time: .1 * 60,
         questions: [
           {
             questionId: 4,
@@ -89,7 +90,7 @@ const exams = [
       {
         sectionId: 3,
         sectionName: 'Data Interpretation and Logical Reasoning',
-        time: 40 * 60,
+        time: .1 * 60,
         questions: [
           {
             questionId: 5,

@@ -31,6 +31,16 @@
     font-weight: 600
 }
 
+.error{
+    color: red;
+    font-size: 14px;
+    margin-top: 8px;
+}
+
+.noClickCursor {
+    cursor: not-allowed;
+}
+
 .main-area {
    display: grid;
   height: 100%;

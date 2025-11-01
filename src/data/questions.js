@@ -45,6 +45,33 @@ const questions = [
     options: ['Paris', 'Berlin', 'Rome', 'Madrid'],
     answer: 0,
   },
+  {
+    id: 5,
+    sectionId: 2,
+    text: 'What is 2 + 2?',
+    options: ['3', '4', '5', '6'],
+    answer: 1,
+  },
+  {
+    id: 6,
+    sectionId: 2,
+    text: 'What is the largest planet in our solar system?',
+    options: ['Earth', 'Mars', 'Jupiter', 'Saturn'],
+    answer: 2,
+  },
+  {
+    id: 7,
+    sectionId: 3,
+    passageId: 2,
+    text: 'According to the passage, what is a key benefit of renewable energy sources?',
+    options: [
+      'They are more expensive than fossil fuels.',
+      'They have a lower environmental impact.',
+      'They are less reliable than fossil fuels.',
+      'They require more land for installation.',
+    ],
+    answer: 1,
+  }
 ];
 
 export default questions;
