@@ -8,9 +8,20 @@ import Calculator from '../components/Calculator.jsx';
 import './QuestionPage.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLock } from '@fortawesome/free-solid-svg-icons';
+import { useGetExamQuery } from '../store/api.js';
 
 function ExamPage() {
   const { eid } = useParams();
+
+  const { data, error, isLoading, refetch } = useGetExamQuery({
+    url: 'exam-section-question',
+    headers: {
+      Authorization: `Bearer ${eid}`
+    }
+  })
+
+  console.log("Data fetched:", data)
+
   const examId = Number(eid);
   console.log(eid)
   const exam = exams.find((e) => e.examId === examId);
@@ -115,7 +126,7 @@ function ExamPage() {
       setQuestionIdx(questionIdx + 1);
       setNoOptionsSelected(false);
     }
-    else{
+    else {
       setNoOptionsSelected(true);
     }
   };
