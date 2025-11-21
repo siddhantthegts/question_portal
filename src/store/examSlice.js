@@ -12,11 +12,15 @@ const examSlice = createSlice({
       state.startTimes[id] = Date.now();
     },
     answerQuestion: (state, action) => {
-      const { id, optionIndex } = action.payload;
-      state.answers[id] = {
-        optionIndex,
-        timeTaken: Date.now() - state.startTimes[id],
-      };
+      const { id, optionIndex, descriptiveText } = action.payload;
+       if (!state.answers[id]) state.answers[id] = {};
+      if (optionIndex !== undefined) {
+        state.answers[id].optionIndex = optionIndex;
+      }
+      if (descriptiveText !== undefined) {
+        state.answers[id].descriptiveText = descriptiveText;
+      }
+      state.answers[id].timeTaken =  Date.now() - state.startTimes[id];
     },
     resetTest: () => ({ answers: {}, startTimes: {} }),
   },

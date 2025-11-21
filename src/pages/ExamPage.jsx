@@ -8,6 +8,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLock } from '@fortawesome/free-solid-svg-icons';
 import { useGetExamQuery } from '../store/api.js';
 import SmartKeyboard from '../components/SmartKeyboard.jsx';
+import { setKeyboardValue } from '../store/keyboardSlice.js';
 
 function ExamPage() {
   const { eid } = useParams();
@@ -18,6 +19,20 @@ function ExamPage() {
       Authorization: `Bearer ${eid}`
     }
   });
+
+  const [descriptive, setDescriptive] = useState('');
+
+  const profile = useMemo(() => {
+    console.log("data:", data?.data?.allData)
+    console.log("Profile", data?.data?.student)
+    if (!data?.data?.student) return null;
+    const profileData = data.data.student;
+    return {
+      studentName: profileData.name,
+      studentEmail: profileData.email,
+      studentPhone: profileData.mobile
+    }
+  }, [data])
 
   const exam = useMemo(() => {
     if (!data?.data?.allData) return null;
@@ -38,7 +53,7 @@ function ExamPage() {
           marks: q.marks,
           negativeMarking: q.negativeMarking,
           explanation: q.explanation,
-          keyboardType: q.keyboardType, 
+          keyboardType: q.keyboardType,
           passageId: q.passageId && q.passageId !== 0 ? q.passageId : null,
           passage: q.passage || null,
           direction: q.direction,
@@ -52,13 +67,13 @@ function ExamPage() {
   const [sectionLock, setSectionLock] = useState({});
   const [questionIdx, setQuestionIdx] = useState(0);
   const dispatch = useDispatch();
-  const answers = useSelector((state) => state.test.answers);
+  const answers = useSelector((state) => state.test.answers );
   const { startTimes } = useSelector((state) => state.test);
   const [showCalc, setShowCalc] = useState(false);
   const [noOptionsSelected, setNoOptionsSelected] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const sectionEnded = useRef(false);
-  
+
   // Initialize sectionLock when exam data is available Only show currect section not previous not after
   useEffect(() => {
     if (exam) {
@@ -82,7 +97,7 @@ function ExamPage() {
     if (!exam) return;
     const currentSection = exam.sections[sectionIdx];
     if (!currentSection) return;
-    
+
     setTimeLeft(currentSection.time);
     sectionEnded.current = false;
 
@@ -117,7 +132,7 @@ function ExamPage() {
 
   const section = exam.sections[sectionIdx];
   if (!section || !section.questions.length) return <p>No questions in this section</p>;
-  
+
   const question = section.questions[questionIdx];
 
   const handleSectionEnd = () => {
@@ -142,9 +157,15 @@ function ExamPage() {
     }
   };
 
-  const handleSelect = (optionIndex) => {
+ const handleSelect = (optionIndex, descriptiveText = "") => {
+  if (descriptiveText && descriptiveText !== "") {
+    dispatch(answerQuestion({ id: question.questionId, descriptiveText }));
+  } else {
     dispatch(answerQuestion({ id: question.questionId, optionIndex }));
-  };
+  }
+};
+
+  console.log("Answers from redux:", answers)
 
   const statuses = section.questions.map((q) => {
     if (answers && answers[q.questionId]) return 'answered';
@@ -156,24 +177,30 @@ function ExamPage() {
   const isAnswered = (() => {
     if (!answers) return false;
     const ans = answers[question.questionId];
-    return ans && ans.optionIndex !== null && ans.optionIndex !== undefined;
+    return ans && (ans.optionIndex !== null || ans.descriptiveText != null) && (ans.optionIndex !== undefined || ans.descriptiveText !== undefined);
   })
 
   const nextInSection = () => {
     if (questionIdx < section.questions.length - 1 && isAnswered(questionIdx)) {
       setQuestionIdx(questionIdx + 1);
       setNoOptionsSelected(false);
+        setDescriptive('')
+        dispatch(setKeyboardValue(''))
     }
     else {
       setNoOptionsSelected(true);
     }
   };
 
+  const handleSetDescriptiveText = (text) => {
+    setDescriptive(text);
+    handleSelect(null, text);
+  }
 
 
   const passage = question.passage || null;
   const hasPassage = !!passage;
-  
+
   const renderHTML = (html) => {
     if (!html) return null;
     return <div dangerouslySetInnerHTML={{ __html: html }} />;
@@ -188,7 +215,6 @@ function ExamPage() {
       .padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  console.log("Current Question:", question)
   return (
     <div className="question-container">
       <header className="header">
@@ -251,7 +277,7 @@ function ExamPage() {
             </ul>
           ) : (
             <div className="descriptive-input">
-              <SmartKeyboard keyboardType={question.keyboardType} getText={(text) => console.log(text)} />
+              <SmartKeyboard keyboardType={question.keyboardType} onChange={(text) => handleSetDescriptiveText(text)} />
             </div>
           )}
           <div className="actions">
@@ -266,6 +292,10 @@ function ExamPage() {
 
         <aside className="side-panel">
           <div className="avatar"></div>
+          <div className='profile'>
+            <b><p>{profile.studentName}</p></b>
+            <p>{profile.studentEmail}</p>
+          </div>
           <ul className="legend">
             <li>
               <span className="box not-visited"></span> Not Visited
