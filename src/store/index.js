@@ -1,12 +1,12 @@
 import { configureStore } from '@reduxjs/toolkit';
 import counterReducer from './counterSlice';
-import testReducer from './testSlice';
+import examReducer from './examSlice';
 import { api } from './api';
 
 const store = configureStore({
   reducer: {
     counter: counterReducer,
-    test: testReducer,
+    test: examReducer,
     [api.reducerPath]: api.reducer,
   },
   middleware: (getDefaultMiddleware) =>

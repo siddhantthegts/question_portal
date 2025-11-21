@@ -1,6 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 
-const testSlice = createSlice({
+const examSlice = createSlice({
   name: 'test',
   initialState: {
     answers: {}, // key: questionId, value: selectedOptionIndex
@@ -22,5 +22,5 @@ const testSlice = createSlice({
   },
 });
 
-export const { startQuestion, answerQuestion, resetTest } = testSlice.actions;
-export default testSlice.reducer;
+export const { startQuestion, answerQuestion, resetTest } = examSlice.actions;
+export default examSlice.reducer;

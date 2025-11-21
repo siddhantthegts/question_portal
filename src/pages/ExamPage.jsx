@@ -1,73 +1,96 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import exams from '../data/exams';
-import passages from '../data/passages';
-import { answerQuestion, startQuestion } from '../store/testSlice';
+import { answerQuestion, startQuestion } from '../store/examSlice.js';
 import Calculator from '../components/Calculator.jsx';
 import './QuestionPage.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLock } from '@fortawesome/free-solid-svg-icons';
 import { useGetExamQuery } from '../store/api.js';
+import SmartKeyboard from '../components/SmartKeyboard.jsx';
 
 function ExamPage() {
   const { eid } = useParams();
 
-  const { data, error, isLoading, refetch } = useGetExamQuery({
+  const { data, error, isLoading } = useGetExamQuery({
     url: 'exam-section-question',
     headers: {
       Authorization: `Bearer ${eid}`
     }
-  })
-
-  console.log("Data fetched:", data)
-
-  const examId = Number(eid);
-  console.log(eid)
-  const exam = exams.find((e) => e.examId === examId);
-
-  if (!exam) return <p>Exam not found</p>;
-
-  const [sectionIdx, setSectionIdx] = useState(0);
-  const [sectionLock, setSectionLock] = useState(prevState => {
-    const locks = {};
-    exam.sections.forEach((sec, idx) => {
-      if (exam.examType === 'CAT') {
-        locks[idx] = idx !== 0;
-      } else if (exam.examType === 'SNAP') {
-        locks[idx] = false;
-      } else if (exam.examType === 'NMAT') {
-        locks[idx] = !(idx === 0 || idx === 2);
-      }
-    });
-    return locks
   });
+
+  const exam = useMemo(() => {
+    if (!data?.data?.allData) return null;
+    const examData = data.data.allData;
+    return {
+      examId: examData.examId,
+      examName: examData.categoryName,
+      totalTime: examData.examDuration * 60,
+      sections: examData.sections.map(sec => ({
+        sectionId: sec.sectionId,
+        sectionName: sec.sectionName,
+        time: Number(sec.sectionDuration) * 60,
+        questions: sec.question.map(q => ({
+          questionId: q.id,
+          type: q.type,
+          text: q.questions,
+          options: [q.A, q.B, q.C, q.D, q.E, q.F].filter(opt => opt && opt.trim()),
+          marks: q.marks,
+          negativeMarking: q.negativeMarking,
+          explanation: q.explanation,
+          keyboardType: q.keyboardType, 
+          passageId: q.passageId && q.passageId !== 0 ? q.passageId : null,
+          passage: q.passage || null,
+          direction: q.direction,
+        }))
+      }))
+    };
+  }, [data]);
+
+  // All hooks must be called before any early returns
+  const [sectionIdx, setSectionIdx] = useState(0);
+  const [sectionLock, setSectionLock] = useState({});
   const [questionIdx, setQuestionIdx] = useState(0);
   const dispatch = useDispatch();
   const answers = useSelector((state) => state.test.answers);
   const { startTimes } = useSelector((state) => state.test);
   const [showCalc, setShowCalc] = useState(false);
   const [noOptionsSelected, setNoOptionsSelected] = useState(false);
-  const section = exam.sections[sectionIdx];
-  const question = section.questions[questionIdx];
-  const [timeLeft, setTimeLeft] = useState(exam.sections[sectionIdx].time);
+  const [timeLeft, setTimeLeft] = useState(0);
   const sectionEnded = useRef(false);
-
-
+  
+  // Initialize sectionLock when exam data is available Only show currect section not previous not after
   useEffect(() => {
-    setTimeLeft(exam.sections[sectionIdx].time);
+    if (exam) {
+      const locks = {};
+      exam.sections.forEach((sec, idx) => {
+        // if (exam.examName === 'CAT') {
+        if (exam.examType === 'CAT') {
+          locks[idx] = idx !== 0;
+        } else if (exam.examName === 'SNAP') {
+          locks[idx] = false;
+        } else if (exam.examName === 'NMAT') {
+          locks[idx] = !(idx === 0 || idx === 2);
+        }
+      });
+      setSectionLock(locks);
+    }
+  }, [exam]);
+
+  // Timer effect - must be before early returns
+  useEffect(() => {
+    if (!exam) return;
+    const currentSection = exam.sections[sectionIdx];
+    if (!currentSection) return;
+    
+    setTimeLeft(currentSection.time);
     sectionEnded.current = false;
 
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-
-          if (!sectionEnded.current) {
-            sectionEnded.current = true;
-            handleSectionEnd();
-          }
-
+          sectionEnded.current = true;
           return 0;
         }
         return prev - 1;
@@ -78,9 +101,27 @@ function ExamPage() {
       clearInterval(timer);
       sectionEnded.current = true;
     };
-  }, [sectionIdx]);
+  }, [sectionIdx, exam]);
+
+  // Question tracking effect - must be before early returns
+  useEffect(() => {
+    if (!exam) return;
+    const currentSection = exam.sections[sectionIdx];
+    if (!currentSection || !currentSection.questions[questionIdx]) return;
+    dispatch(startQuestion(currentSection.questions[questionIdx].questionId));
+  }, [sectionIdx, questionIdx, exam, dispatch]);
+
+  // Early returns after all hooks
+  if (isLoading) return <p>Loading...</p>;
+  if (error || !exam) return <p>Exam not found</p>;
+
+  const section = exam.sections[sectionIdx];
+  if (!section || !section.questions.length) return <p>No questions in this section</p>;
+  
+  const question = section.questions[questionIdx];
 
   const handleSectionEnd = () => {
+    if (!exam) return;
     setSectionLock(prev => {
       const updated = { ...prev };
       if (exam.examType === 'CAT') {
@@ -101,22 +142,19 @@ function ExamPage() {
     }
   };
 
-  useEffect(() => {
-    dispatch(startQuestion(question.questionId));
-  }, [question.questionId]);
-
   const handleSelect = (optionIndex) => {
     dispatch(answerQuestion({ id: question.questionId, optionIndex }));
   };
 
   const statuses = section.questions.map((q) => {
-    if (answers[q.questionId]) return 'answered';
+    if (answers && answers[q.questionId]) return 'answered';
     if (q.questionId === question.questionId) return 'current';
-    if (q.questionId in startTimes) return 'not-answered';
+    if (startTimes && q.questionId in startTimes) return 'not-answered';
     return 'not-visited';
   });
 
   const isAnswered = (() => {
+    if (!answers) return false;
     const ans = answers[question.questionId];
     return ans && ans.optionIndex !== null && ans.optionIndex !== undefined;
   })
@@ -133,8 +171,13 @@ function ExamPage() {
 
 
 
-  const passage = question.passageId ? passages.find((p) => p.id === question.passageId) : null;
+  const passage = question.passage || null;
   const hasPassage = !!passage;
+  
+  const renderHTML = (html) => {
+    if (!html) return null;
+    return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  };
 
   const formatTime = (seconds) => {
     const h = Math.floor(seconds / 3600);
@@ -145,25 +188,25 @@ function ExamPage() {
       .padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  console.log("Current Question:", question)
   return (
     <div className="question-container">
       <header className="header">
         <nav className="sections">
           {exam.sections.map((sec, idx) => (
-            <div key={sec.sectionId} className={`section ${idx === sectionIdx ? 'active' : ''} ${sectionLock[idx] ? 'noClickCursor' : ''}`}>
-              <span
-                key={sec.sectionId}
-                onClick={sectionLock[idx] ? () => { } : () => {
-                  if (!sectionLock[idx]) {
-                    setSectionIdx(idx);
-                    setQuestionIdx(0);
-                  }
-                }}
-              >
-                {sec.sectionName}
-              </span>
+            <span
+              key={sec.sectionId}
+              className={`section ${idx === sectionIdx ? 'active' : ''} ${sectionLock[idx] ? 'noClickCursor' : ''}`}
+              onClick={sectionLock[idx] ? undefined : () => {
+                if (!sectionLock[idx]) {
+                  setSectionIdx(idx);
+                  setQuestionIdx(0);
+                }
+              }}
+            >
+              {sec.sectionName}
               {sectionLock[idx] && <FontAwesomeIcon icon={faLock} className="lock-icon" />}
-            </div>
+            </span>
           ))}
         </nav>
         <div className="timer">Time Left : {formatTime(timeLeft)} </div>
@@ -175,33 +218,42 @@ function ExamPage() {
       <main className={`main-area ${hasPassage ? 'with-passage' : 'no-passage'}`}>
         {hasPassage && (
           <div className="passage-panel">
-            <p>{passage.text}</p>
+            {passage.title && <h4>{renderHTML(passage.title)}</h4>}
+            {renderHTML(passage.passage || passage.text || '')}
           </div>
         )}
 
         <div className="question-content">
-          <div className="meta">Mark/s: 3.00 | Negative Mark/s: 1.00</div>
-
+          <div className="meta">
+            Mark/s: {question.marks} | Negative Mark/s: {question.negativeMarking ? (question.marks / 3).toFixed(2) : '0.00'}
+          </div>
+          {question.direction && <div className="direction">{renderHTML(question.direction)}</div>}
           <h3>
             Question {questionIdx + 1}/{section.questions.length}
           </h3>
-          <p className="question-text">{question.text}</p>
-          <ul className="options">
-            {question.options.map((opt, idx) => (
-              <li key={idx}>
-                <label className="option-radio">
-                  <input
-                    type="radio"
-                    name={`q-${question.questionId}`}
-                    checked={answers[question.questionId]?.optionIndex === idx}
-                    onChange={() => handleSelect(idx)}
-                  />
-                  <span>{opt}</span>
-                </label>
-              </li>
-            ))}
-            {noOptionsSelected && <p className='error'>Please select an option</p>}
-          </ul>
+          <div className="question-text">{renderHTML(question.text)}</div>
+          {question.type === 'MCQ' ? (
+            <ul className="options">
+              {question.options.map((opt, idx) => (
+                <li key={idx}>
+                  <label className="option-radio">
+                    <input
+                      type="radio"
+                      name={`q-${question.questionId}`}
+                      checked={answers && answers[question.questionId]?.optionIndex === idx}
+                      onChange={() => handleSelect(idx)}
+                    />
+                    <span>{renderHTML(opt)}</span>
+                  </label>
+                </li>
+              ))}
+              {noOptionsSelected && <p className='error'>Please select an option</p>}
+            </ul>
+          ) : (
+            <div className="descriptive-input">
+              <SmartKeyboard keyboardType={question.keyboardType} getText={(text) => console.log(text)} />
+            </div>
+          )}
           <div className="actions">
             <button className="btn" onClick={nextInSection}>
               Mark for review and Next
