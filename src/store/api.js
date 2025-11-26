@@ -23,12 +23,28 @@ export const api = createApi({
                 console.log("response from backend", res)
                 return res;
             }
-        })
-    }),
+        }),
+        answerQuestion: build.query({
+            query: ({ url, data, headers }) => {
 
+                if (data.questionId || data.sectionId || data.studentAnswer || data.time === undefined) {
+                    console.error("Missing required fields in data for answering question");
+                }
+                
+                return {
+                    url: `/create/exam-question-answer`,
+                    method: 'POST',
+                    body: data,
+                    headers
+                }
+            },
+            transformResponse: (res) => {
+                console.log("response from backend for question answer", res)
+                return res;
+            },
+        }),
+    }),
     keepUnusedDataFor: 300
 })
 
-export const { useGetExamQuery } = api;
-
-
+export const { useGetExamQuery, useAnswerQuestionQuery } = api;
