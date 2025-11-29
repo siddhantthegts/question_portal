@@ -1,17 +1,15 @@
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 
 
+
 export const api = createApi({
     reducerPath: 'api',
     baseQuery: fetchBaseQuery({
-        baseUrl: 'https://catmock.com/panel',
-        prepareHeaders: (headers) => {
-            return headers
-        }
+        baseUrl: 'https://catmock.com/panel'
     }),
     endpoints: (build) => ({
         getExam: build.query({
-            query: ({ url, data, headers }) => {
+            query: ({ url, data,headers }) => {
                 return {
                     url: `/retrieve/${url}`,
                     method: 'GET',
@@ -24,11 +22,11 @@ export const api = createApi({
                 return res;
             }
         }),
-        answerQuestion: build.query({
-            query: ({ url, data, headers }) => {
-
-                if (data.questionId || data.sectionId || data.studentAnswer || data.time === undefined) {
-                    console.error("Missing required fields in data for answering question");
+        answerQuestion: build.mutation({
+            query: ({ data, headers }) => {
+                if (!data.questionId || !data.sectionId || data.studentAnswer === undefined || data.time === undefined) {
+                    console.error("Missing required fields in data for answering question", data);
+                    return;
                 }
                 
                 return {
@@ -47,4 +45,4 @@ export const api = createApi({
     keepUnusedDataFor: 300
 })
 
-export const { useGetExamQuery, useAnswerQuestionQuery } = api;
+export const { useGetExamQuery, useAnswerQuestionMutation } = api;

@@ -6,12 +6,13 @@ import Calculator from '../components/Calculator.jsx';
 import './QuestionPage.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faLock } from '@fortawesome/free-solid-svg-icons';
-import { useGetExamQuery } from '../store/api.js';
+import { useGetExamQuery, useAnswerQuestionMutation } from '../store/api.js';
 import SmartKeyboard from '../components/SmartKeyboard.jsx';
 import { setKeyboardValue } from '../store/keyboardSlice.js';
 
 function ExamPage() {
   const { eid } = useParams();
+  const [triggerAnswerQuestion] = useAnswerQuestionMutation();
 
   const { data, error, isLoading } = useGetExamQuery({
     url: 'exam-section-question',
@@ -165,7 +166,6 @@ function ExamPage() {
   }
 };
 
-  console.log("Answers from redux:", answers)
 
   const statuses = section.questions.map((q) => {
     if (answers && answers[q.questionId]) return 'answered';
@@ -180,8 +180,39 @@ function ExamPage() {
     return ans && (ans.optionIndex !== null || ans.descriptiveText != null) && (ans.optionIndex !== undefined || ans.descriptiveText !== undefined);
   })
 
-  const nextInSection = () => {
+  const nextInSection = async () => {
     if (questionIdx < section.questions.length - 1 && isAnswered(questionIdx)) {
+
+      try {
+        const answerData = answers[question.questionId];
+        let studentAnswer = null;
+        
+        if (answerData?.optionIndex !== undefined && answerData?.optionIndex !== null) {
+          const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
+          studentAnswer = letters[answerData.optionIndex];
+        } else if (answerData?.descriptiveText) {
+          studentAnswer = answerData.descriptiveText;
+        }
+
+        const timeTakenMs = answerData?.timeTaken || 0;
+        const timeTakenSeconds = Math.round(timeTakenMs / 1000);
+
+        await triggerAnswerQuestion({
+          data: {
+            questionId: question.questionId,
+            sectionId: section.sectionId,
+            studentAnswer: studentAnswer,
+            time: timeTakenSeconds
+          },
+          headers: {
+            'Authorization': `Bearer ${eid}`
+          }
+        }).unwrap();
+        console.log("Answer submitted successfully");
+      } catch (error) {
+        console.error("Failed to submit answer:", error);
+      }
+
       setQuestionIdx(questionIdx + 1);
       setNoOptionsSelected(false);
         setDescriptive('')
