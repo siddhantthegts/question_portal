@@ -1,0 +1,104 @@
+/* Override parent constraints when analytics portal is active */
+html.analytics-portal-active {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+body.analytics-portal-active {
+  display: block !important;
+  place-items: unset !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+#root.analytics-portal-active {
+  max-width: 100% !important;
+  width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  text-align: left !important;
+}
+
+/* Premium white theme with modern styling */
+.analytics-portal {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 32px 24px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, sans-serif;
+  background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+  min-height: 100vh;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.analytics-header {
+  margin-bottom: 32px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.1);
+}
+
+.analytics-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #64748b;
+  margin: 0;
+  font-weight: 500;
+}
+
+.tabs-container {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(51, 65, 85, 0.1);
+}
+
+.tab-button {
+  padding: 10px 22px;
+  border: 1px solid rgba(51, 65, 85, 0.15);
+  background-color: #ffffff;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.tab-button:hover {
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #2563eb;
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.tab-button.active {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+  color: white;
+  border-color: transparent;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
+}
+
+.tab-content {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

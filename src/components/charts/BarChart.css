@@ -1,0 +1,93 @@
+.bar-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.chart-bars {
+  display: flex;
+  justify-content: space-around;
+  align-items: flex-end;
+  height: 250px;
+  padding: 20px 0;
+}
+
+.bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.bar {
+  width: 50px;
+  border-radius: 4px 4px 0 0;
+  transition: all 0.3s ease;
+}
+
+.bar.correct {
+  background-color: #10b981;
+}
+
+.bar.incorrect {
+  background-color: #ef4444;
+}
+
+.bar.unanswered {
+  background-color: #9ca3af;
+}
+
+.bar:hover {
+  opacity: 0.8;
+  transform: scaleY(1.05);
+}
+
+.bar-label {
+  font-weight: 700;
+  font-size: 16px;
+  color: #1f2937;
+  min-width: 30px;
+  text-align: center;
+}
+
+.bar-title {
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 500;
+  text-align: center;
+}
+
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #4b5563;
+  font-weight: 500;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.legend-dot.correct {
+  background-color: #10b981;
+}
+
+.legend-dot.incorrect {
+  background-color: #ef4444;
+}
+
+.legend-dot.unanswered {
+  background-color: #9ca3af;
+}
