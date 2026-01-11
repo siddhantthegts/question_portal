@@ -41,8 +41,21 @@ export const api = createApi({
                 return res;
             },
         }),
+        getExamQuestionAnswers: build.query({
+            query: ({ attemptId, headers }) => {
+                return {
+                    url: `/retrieve/exam-question-answer/${attemptId}`,
+                    method: 'GET',
+                    headers
+                }
+            },
+            transformResponse: (res) => {
+                console.log("response from backend for exam question answers", res)
+                return res;
+            },
+        }),
     }),
     keepUnusedDataFor: 300
 })
 
-export const { useGetExamQuery, useAnswerQuestionMutation } = api;
+export const { useGetExamQuery, useAnswerQuestionMutation, useGetExamQuestionAnswersQuery } = api;
