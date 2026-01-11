@@ -1,11 +1,69 @@
 "use client"
 
 import "./QuestionViewer.css"
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useLocation } from "react-router-dom"
+import { useUpdateStudentQuestionResponseMutation, useGetStudentQuestionResponsesQuery } from "../store/analyticsApi"
 
 function QuestionViewer({ question }) {
+  const location = useLocation()
+  const token = location.state?.token || null
+  const examId = location.state?.examId || null
   const [analyzeModalOpen, setAnalyzeModalOpen] = useState(false)
   const [solutionModalOpen, setSolutionModalOpen] = useState(false)
+  const [selectedReason, setSelectedReason] = useState(question.userReason || 'none')
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [updateStudentQuestionResponse] = useUpdateStudentQuestionResponseMutation()
+  
+  // Fetch question response data when analyze modal opens
+  const {
+    data: questionResponseData,
+    isLoading: isLoadingQuestionResponse,
+    error: questionResponseError,
+  } = useGetStudentQuestionResponsesQuery(
+    {
+      params: {
+        questionId: question.questionId,
+        examId: examId,
+        limit: 1,
+      },
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    },
+    { skip: !analyzeModalOpen || !question?.questionId || !examId || !token }
+  )
+  
+  // Extract the question response (first result if available)
+  const questionResponse = questionResponseData?.data?.[0] || null
+  
+  console.log('Question Response Data:', {
+    questionResponseData,
+    questionResponse,
+    isLoadingQuestionResponse,
+    questionResponseError,
+  })
+
+  // Helper function to render HTML content (for math and formatting)
+  const renderHTML = (html) => {
+    if (!html) return null;
+    return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  };
+
+  // Extract passage text - handle both object and string formats
+  const getPassageContent = () => {
+    if (!question.passage) return null;
+    if (typeof question.passage === 'string') {
+      return question.passage;
+    }
+    if (typeof question.passage === 'object') {
+      return question.passage.passage || question.passage.text || null;
+    }
+    return null;
+  };
+
+  const getPassageTitle = () => {
+    if (!question.passage || typeof question.passage !== 'object') return null;
+    return question.passage.title || null;
+  };
 
   const getStatusBadge = (status) => {
     const badges = {
@@ -17,6 +75,40 @@ function QuestionViewer({ question }) {
   }
 
   const statusBadge = getStatusBadge(question.status)
+  const passageContent = getPassageContent()
+  const passageTitle = getPassageTitle()
+  const isIncorrect = question.status === 'incorrect'
+  const hasExplanation = question.explanation && question.explanation.trim() !== ''
+
+  // Handle reason selection and submission
+  const handleReasonChange = async (reason) => {
+    setSelectedReason(reason)
+    
+    // Only submit if we have a StudentQuestionResponse ID and token
+    if (question.responseId && token) {
+      setIsSubmitting(true)
+      try {
+        await updateStudentQuestionResponse({
+          id: question.responseId,
+          data: { userReason: reason },
+          headers: { Authorization: `Bearer ${token}` }
+        }).unwrap()
+        // Update question object with new reason (optimistic update)
+        question.userReason = reason
+      } catch (error) {
+        console.error('Failed to update user reason:', error)
+        // Revert selection on error
+        setSelectedReason(question.userReason || 'none')
+        alert('Failed to save your feedback. Please try again.')
+      } finally {
+        setIsSubmitting(false)
+      }
+    } else if (!question.responseId) {
+      // If no responseId, show a message that feedback cannot be saved
+      console.warn('StudentQuestionResponse ID not found. Cannot save feedback.')
+      // Still allow selection for UI purposes, but don't save
+    }
+  }
 
   return (
     <div className="question-viewer-full">
@@ -43,15 +135,16 @@ function QuestionViewer({ question }) {
       </div>
 
       {/* Passage (if exists) */}
-      {question.passage && (
+      {passageContent && (
         <div className="question-passage">
-          <p>{question.passage}</p>
+          {passageTitle && <h4>{renderHTML(passageTitle)}</h4>}
+          {renderHTML(passageContent)}
         </div>
       )}
 
       {/* Main Question */}
       <div className="question-main">
-        <p className="question-text">{question.question}</p>
+        <div className="question-text">{renderHTML(question.question)}</div>
       </div>
 
       {/* Options */}
@@ -72,7 +165,7 @@ function QuestionViewer({ question }) {
                 {isUserAnswer && <span className="user-indicator">✓</span>}
               </div>
               <div className="option-content">
-                <p className="option-text">{option}</p>
+                <div className="option-text">{renderHTML(option)}</div>
               </div>
               {isCorrect && <span className="correct-label">Correct Answer</span>}
               {isIncorrect && <span className="incorrect-label">Your Answer</span>}
@@ -130,8 +223,16 @@ function QuestionViewer({ question }) {
                     <span className="metric-value incorrect">{100 - question.accuracy}%</span>
                   </div>
                   <div className="metric">
-                    <span className="metric-label">Avg Time (sec)</span>
-                    <span className="metric-value">{question.timeTaken + 2}s</span>
+                    <span className="metric-label">Your Time (sec)</span>
+                    <span className="metric-value">
+                      {isLoadingQuestionResponse ? (
+                        'Loading...'
+                      ) : questionResponse?.timeTaken ? (
+                        `${questionResponse.timeTaken}s`
+                      ) : (
+                        `${question.timeTaken || 0}s`
+                      )}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -142,7 +243,17 @@ function QuestionViewer({ question }) {
                   <li>
                     Difficulty level: <strong>{question.difficulty}</strong>
                   </li>
-                  <li>Average time to solve: {question.timeTaken + 2} seconds</li>
+                  <li>
+                    Time taken to solve: <strong>
+                      {isLoadingQuestionResponse ? (
+                        'Loading...'
+                      ) : questionResponse?.timeTaken ? (
+                        `${questionResponse.timeTaken} seconds`
+                      ) : (
+                        `${question.timeTaken || 0} seconds`
+                      )}
+                    </strong>
+                  </li>
                   <li>Common mistake: Students often choose option B due to misunderstanding</li>
                 </ul>
               </div>
@@ -198,13 +309,75 @@ function QuestionViewer({ question }) {
                   <p>
                     <strong>Answer: {question.correctAnswer}</strong>
                   </p>
-                  <p className="explanation">
-                    This is the correct answer because it directly aligns with the main theme and purpose of the
-                    passage/question. The other options are distractors that may seem relevant but don't fully address
-                    the core concept being tested.
-                  </p>
+                  {hasExplanation ? (
+                    <div className="explanation">
+                      <h5>Explanation:</h5>
+                      {renderHTML(question.explanation)}
+                    </div>
+                  ) : (
+                    <p className="explanation">
+                      This is the correct answer because it directly aligns with the main theme and purpose of the
+                      passage/question. The other options are distractors that may seem relevant but don't fully address
+                      the core concept being tested.
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {/* Feedback Section for Incorrect Answers */}
+              {isIncorrect && (
+                <div className="solution-section">
+                  <h4>Why did you miss this question?</h4>
+                  <p className="feedback-description">Help us understand why you got this question wrong. This feedback helps improve our question analysis.</p>
+                  <div className="reason-selection">
+                    <label className={`reason-option ${selectedReason === 'misread' ? 'selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="userReason"
+                        value="misread"
+                        checked={selectedReason === 'misread'}
+                        onChange={(e) => handleReasonChange(e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                      <span>Misread the question</span>
+                    </label>
+                    <label className={`reason-option ${selectedReason === 'misjudged' ? 'selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="userReason"
+                        value="misjudged"
+                        checked={selectedReason === 'misjudged'}
+                        onChange={(e) => handleReasonChange(e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                      <span>Misjudged the answer</span>
+                    </label>
+                    <label className={`reason-option ${selectedReason === 'guess' ? 'selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="userReason"
+                        value="guess"
+                        checked={selectedReason === 'guess'}
+                        onChange={(e) => handleReasonChange(e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                      <span>Guessed the answer</span>
+                    </label>
+                    <label className={`reason-option ${selectedReason === 'none' ? 'selected' : ''}`}>
+                      <input
+                        type="radio"
+                        name="userReason"
+                        value="none"
+                        checked={selectedReason === 'none'}
+                        onChange={(e) => handleReasonChange(e.target.value)}
+                        disabled={isSubmitting}
+                      />
+                      <span>Other / Not sure</span>
+                    </label>
+                  </div>
+                  {isSubmitting && <p className="submitting-indicator">Saving...</p>}
+                </div>
+              )}
             </div>
           </div>
         </div>

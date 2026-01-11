@@ -1,76 +1,43 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import "../sections.css"
 
-function SectionWiseAnalysis() {
-  const analysisData = [
-    {
-      section: "Verbal Ability and Reading Comprehension",
-      correct: 2,
-      incorrect: 12,
-      unanswered: 10,
-      accuracy: 14,
-    },
-    {
-      section: "Data Interpretation & Logical Reasoning",
-      correct: 9,
-      incorrect: 13,
-      unanswered: 0,
-      accuracy: 40,
-    },
-    {
-      section: "Quantitative Aptitude",
-      correct: 1,
-      incorrect: 21,
-      unanswered: 0,
-      accuracy: 4,
-    },
-  ]
+function SectionWiseAnalysis({ data }) {
+  // Use real data if provided, otherwise show empty state
+  const analysisData = data?.sections || []
+  const overall = data?.overall || {
+    marks: 0,
+    totalQuestions: 0,
+    attempts: 0,
+    correct: 0,
+    incorrect: 0,
+    unanswered: 0,
+    accuracy: 0,
+  }
 
+  // Build table data with overall row
   const tableData = [
     {
       section: "OVERALL",
-      marks: -1.0,
-      totalQs: 68,
-      attempts: 58,
-      correct: 12,
-      incorrect: 46,
-      unanswered: 10,
-      accuracy: "20%",
-      percentile: 2.09,
+      marks: overall.marks || 0,
+      totalQs: overall.totalQuestions || 0,
+      attempts: overall.attempts || 0,
+      correct: overall.correct || 0,
+      incorrect: overall.incorrect || 0,
+      unanswered: overall.unanswered || 0,
+      accuracy: `${overall.accuracy || 0}%`,
+      percentile: 0, // Percentile would need to be calculated from all students' data
     },
-    {
-      section: "Verbal Ability and Reading Comprehension",
-      marks: -5.0,
-      totalQs: 24,
-      attempts: 14,
-      correct: 2,
-      incorrect: 12,
-      unanswered: 10,
-      accuracy: "14%",
-      percentile: 0.74,
-    },
-    {
-      section: "Data Interpretation & Logical Reasoning",
-      marks: 16.0,
-      totalQs: 22,
-      attempts: 22,
-      correct: 9,
-      incorrect: 13,
-      unanswered: 0,
-      accuracy: "40%",
-      percentile: 76.41,
-    },
-    {
-      section: "Quantitative Aptitude",
-      marks: -12.0,
-      totalQs: 22,
-      attempts: 22,
-      correct: 1,
-      incorrect: 21,
-      unanswered: 0,
-      accuracy: "4%",
-      percentile: 0,
-    },
+    ...analysisData.map((section) => ({
+      section: section.section,
+      marks: section.marks || 0,
+      totalQs: section.totalQuestions || 0,
+      attempts: section.attempts || 0,
+      correct: section.correct || 0,
+      incorrect: section.incorrect || 0,
+      unanswered: section.unanswered || 0,
+      accuracy: `${section.accuracy || 0}%`,
+      percentile: 0, // Percentile would need to be calculated from all students' data
+    })),
   ]
 
   return (

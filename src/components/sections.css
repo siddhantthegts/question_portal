@@ -695,6 +695,20 @@ h3 {
   color: #475569;
 }
 
+.time-table td.question {
+  max-width: 500px;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.time-table td.question > div {
+  max-width: 100%;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.5;
+  white-space: normal;
+}
+
 .analysis-table .section-name,
 .time-table .number {
   font-weight: 600;

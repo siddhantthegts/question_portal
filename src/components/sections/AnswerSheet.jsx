@@ -1,91 +1,76 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import QuestionViewer from "../QuestionViewer"
 import "../sections.css"
 
-function AnswerSheet() {
-  const verbalQuestions = Array.from({ length: 24 }, (_, i) => ({
-    id: i + 1,
-    number: i + 1,
-    section: "verbal",
-    sectionName: "Verbal Ability & Reading Comprehension",
-    type: i % 3 === 0 ? "passage" : "mcq",
-    difficulty: ["Easy", "Medium", "Hard"][i % 3],
-    timeTaken: Math.floor(Math.random() * 10) + 2,
-    accuracy: Math.floor(Math.random() * 100),
-    passage:
-      i % 3 === 0
-        ? `The world's nights are getting alarmingly brighter- bad news for all sorts of creatures, humans included- as light pollution encroaches on darkness almost everywhere. Satellite observations made by researchers during five consecutive Octobers show Earth's artificially lit outdoor area grew by 2% a year from 2012 to 2016. So did nighttime brightness. Light pollution was even worse than that, according to the German-led team, because the sensor used cannot detect some of the LED lighting that is becoming more widespread, specifically blue light.`
-        : null,
-    question:
-      i % 3 === 0
-        ? "The thematic highlight of the passage is to:"
-        : `Question ${i + 1}: Choose the most appropriate word to fill in the blank.`,
-    options:
-      i % 3 === 0
-        ? [
-            "Highlight the role of light pollution in increasing the usage of global consumption of light.",
-            "Showcase the multi-faceted side effects of environmental degradation.",
-            "Highlight the abject failure of LEDs in curbing light pollution.",
-            "Showcase the side effects of light pollution and suggest some remedies.",
-          ]
-        : ["Option A", "Option B", "Option C", "Option D"],
-    userAnswer: ["A", "B", "C", "D", null][i % 5],
-    correctAnswer: ["A", "B", "C", "D"][i % 4],
-    status: ["correct", "incorrect", "unanswered"][i % 3],
-  }))
+function AnswerSheet({ data = [], examStructure = null }) {
+  // Transform real data into the format expected by the component
+  // Note: data comes from exam-question-answer API and already includes question details
+  const allSections = useMemo(() => {
+    console.log('AnswerSheet received data:', {
+      dataLength: data.length,
+      dataSample: data.slice(0, 2),
+      examStructureExists: !!examStructure,
+    });
+    
+    if (!data.length) {
+      console.warn('AnswerSheet: No data received');
+      return []
+    }
 
-  // Repeat pattern for other sections
-  const dataQuestions = Array.from({ length: 24 }, (_, i) => ({
-    id: i + 25,
-    number: i + 25,
-    section: "data",
-    sectionName: "Data Interpretation & Logical Reasoning",
-    type: i % 2 === 0 ? "passage" : "mcq",
-    difficulty: ["Easy", "Medium", "Hard"][i % 3],
-    timeTaken: Math.floor(Math.random() * 10) + 2,
-    accuracy: Math.floor(Math.random() * 100),
-    passage: i % 2 === 0 ? `Sample data interpretation set... ${i + 25}` : null,
-    question: `Question ${i + 25}: What can be inferred from the given data?`,
-    options: ["Option A", "Option B", "Option C", "Option D", "Option E"],
-    userAnswer: ["A", "B", "C", "D", null][i % 5],
-    correctAnswer: "C",
-    status: ["correct", "incorrect", "unanswered"][i % 3],
-  }))
+    // Group questions by section from exam-question-answer data
+    const sectionsMap = {}
+    
+    data.forEach((item) => {
+      const sectionId = item.section || item.sectionName.toLowerCase().replace(/\s+/g, "-")
+      
+      if (!sectionsMap[item.sectionId]) {
+        sectionsMap[item.sectionId] = {
+          id: sectionId,
+          name: item.sectionName,
+          questions: [],
+        }
+      }
 
-  const quantQuestions = Array.from({ length: 24 }, (_, i) => ({
-    id: i + 49,
-    number: i + 49,
-    section: "quant",
-    sectionName: "Quantitative Aptitude",
-    type: "mcq",
-    difficulty: ["Easy", "Medium", "Hard"][(i + 1) % 3],
-    timeTaken: Math.floor(Math.random() * 8) + 1,
-    accuracy: Math.floor(Math.random() * 100),
-    question: `If x + y = 10 and xy = 24, find the value of x² + y².`,
-    options: ["52", "28", "100", "48"],
-    userAnswer: ["A", "B", "C", "D", null][i % 5],
-    correctAnswer: "A",
-    status: ["correct", "incorrect", "unanswered"][i % 3],
-  }))
+      sectionsMap[item.sectionId].questions.push({
+        id: item.questionId,
+        number: item.number,
+        section: sectionId,
+        sectionName: item.sectionName,
+        type: item.type || (item.options?.length > 0 ? "mcq" : "descriptive"),
+        difficulty: item.difficulty || "medium",
+        timeTaken: item.timeTaken || 0,
+        accuracy: item.accuracy || 0,
+        passage: item.passage || null,
+        question: item.question || null,
+        options: item.options || [],
+        userAnswer: item.userAnswer,
+        correctAnswer: item.correctAnswer,
+        status: item.status,
+        explanation: item.explanation || null,
+        responseId: item.responseId || null,
+        userReason: item.userReason || 'none',
+      })
+    })
+
+    return Object.values(sectionsMap)
+  }, [data])
 
   const [selectedSubject, setSelectedSubject] = useState("all")
-  const [selectedQuestionId, setSelectedQuestionId] = useState(verbalQuestions[0].id)
+  const firstQuestionId = allSections.length > 0 && allSections[0].questions.length > 0
+    ? allSections[0].questions[0].id
+    : null
+  const [selectedQuestionId, setSelectedQuestionId] = useState(firstQuestionId)
 
-  const allSections = [
-    { id: "verbal", name: "Verbal Ability & Reading Comprehension", questions: verbalQuestions },
-    { id: "data", name: "Data Interpretation & Logical Reasoning", questions: dataQuestions },
-    { id: "quant", name: "Quantitative Aptitude", questions: quantQuestions },
-  ]
-
-  let filteredQuestions = []
-  if (selectedSubject === "all") {
-    filteredQuestions = [...verbalQuestions, ...dataQuestions, ...quantQuestions]
-  } else {
-    const section = allSections.find((s) => s.id === selectedSubject)
-    filteredQuestions = section?.questions || []
-  }
+  const filteredQuestions = useMemo(() => {
+    if (selectedSubject === "all") {
+      return allSections.flatMap((section) => section.questions)
+    } else {
+      const section = allSections.find((s) => s.id === selectedSubject)
+      return section?.questions || []
+    }
+  }, [selectedSubject, allSections])
 
   const currentQuestion = filteredQuestions.find((q) => q.id === selectedQuestionId) || filteredQuestions[0]
   const currentQuestionIndex = filteredQuestions.findIndex((q) => q.id === selectedQuestionId)
@@ -123,29 +108,37 @@ function AnswerSheet() {
   return (
     <div className="answer-sheet-container">
       {/* Subject Filter */}
-      <div className="subject-filter-bar">
-        <div className="filter-buttons">
-          {[
-            { value: "verbal", label: "Verbal Ability & Reading Comprehension" },
-            { value: "data", label: "Data Interpretation & Logical Reasoning" },
-            { value: "quant", label: "Quantitative Aptitude" },
-            { value: "all", label: "ALL" },
-          ].map((option) => (
+      {allSections.length > 0 && (
+        <div className="subject-filter-bar">
+          <div className="filter-buttons">
+            {allSections.map((section) => (
+              <button
+                key={section.id}
+                className={`filter-btn ${selectedSubject === section.id ? "active" : ""}`}
+                onClick={() => {
+                  setSelectedSubject(section.id)
+                  if (section.questions.length > 0) {
+                    setSelectedQuestionId(section.questions[0].id)
+                  }
+                }}
+              >
+                {section.name}
+              </button>
+            ))}
             <button
-              key={option.value}
-              className={`filter-btn ${selectedSubject === option.value ? "active" : ""}`}
+              className={`filter-btn ${selectedSubject === "all" ? "active" : ""}`}
               onClick={() => {
-                setSelectedSubject(option.value)
-                setSelectedQuestionId(
-                  allSections.find((s) => s.id === (option.value === "all" ? "verbal" : option.value)).questions[0].id,
-                )
+                setSelectedSubject("all")
+                if (filteredQuestions.length > 0) {
+                  setSelectedQuestionId(filteredQuestions[0].id)
+                }
               }}
             >
-              {option.label}
+              ALL
             </button>
-          ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Main Content - Two Column Layout */}
       <div className="answer-sheet-main">
@@ -181,7 +174,13 @@ function AnswerSheet() {
 
         {/* Right: Question Viewer */}
         <div className="question-viewer-panel">
-          <QuestionViewer question={currentQuestion} />
+          {currentQuestion ? (
+            <QuestionViewer question={currentQuestion} />
+          ) : (
+            <div className="no-question-message">
+              <p>No questions available</p>
+            </div>
+          )}
         </div>
       </div>
 

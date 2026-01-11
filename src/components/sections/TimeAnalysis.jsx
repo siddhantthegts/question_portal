@@ -1,51 +1,49 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 import "../sections.css"
 
-export default function TimeAnalysis() {
-  const timeAnalysisData = [
-    { no: 1, question: "The thematic highlight of the passage is to:", time: 4, percent: 52.7 },
-    { no: 2, question: "Which of the following cannot be inferred from the passage?", time: 25, percent: 55.35 },
-    { no: 3, question: "Which of the following is true according to the passage?", time: 2, percent: 28.1 },
-    {
-      no: 4,
-      question: "Which statement from the passage best illustrates the idea that energy-efficient...",
-      time: 1,
-      percent: 46.83,
-    },
-    {
-      no: 5,
-      question: "According to Aristotle's view on virtue, which of the following best captures...",
-      time: 1,
-      percent: 56.59,
-    },
-    {
-      no: 6,
-      question: "According to Aristotle's view on virtue, which of the following statements best describes...",
-      time: 1,
-      percent: 46.43,
-    },
-    { no: 7, question: "For what purpose does Aristotle use the analogy of a sharp knife...", time: 1, percent: 81.47 },
-  ]
+export default function TimeAnalysis({ data = [] }) {
+  // Helper function to render HTML content (for math and formatting)
+  const renderHTML = (html) => {
+    if (!html) return null;
+    return <div dangerouslySetInnerHTML={{ __html: html }} />;
+  };
+  // Use real data if provided, otherwise show empty state
+  const timeAnalysisData = data.length > 0 ? data : []
 
-  const times = timeAnalysisData.map((d) => d.time)
-  const avgTime = (times.reduce((a, b) => a + b, 0) / times.length).toFixed(2)
-  const maxTime = Math.max(...times)
-  const minTime = Math.min(...times)
+  const times = timeAnalysisData.map((d) => d.time).filter((t) => t > 0)
+  const avgTime = times.length > 0 ? (times.reduce((a, b) => a + b, 0) / times.length).toFixed(2) : 0
+  const maxTime = times.length > 0 ? Math.max(...times) : 0
+  const minTime = times.length > 0 ? Math.min(...times) : 0
 
-  // Section time metrics (mock data)
-  const sectionTimeData = [
-    { section: "Verbal", totalTime: 120, avgPerQ: 17.1 },
-    { section: "Data Interpretation", totalTime: 95, avgPerQ: 8.6 },
-    { section: "Quantitative", totalTime: 85, avgPerQ: 10.6 },
-  ]
+  // Group by section (if section info is available in data)
+  // For now, we'll calculate section time from the data
+  const sectionTimeMap = {}
+  timeAnalysisData.forEach((item) => {
+    // Assuming we can group by some section identifier
+    // This would need to be enhanced based on actual data structure
+    const section = item.section || "Overall"
+    if (!sectionTimeMap[section]) {
+      sectionTimeMap[section] = { totalTime: 0, count: 0 }
+    }
+    sectionTimeMap[section].totalTime += item.time || 0
+    sectionTimeMap[section].count += 1
+  })
+
+  const sectionTimeData = Object.keys(sectionTimeMap).map((section) => ({
+    section,
+    totalTime: sectionTimeMap[section].totalTime,
+    avgPerQ: sectionTimeMap[section].count > 0
+      ? (sectionTimeMap[section].totalTime / sectionTimeMap[section].count).toFixed(1)
+      : 0,
+  }))
 
   // Time distribution chart data
   const timeDistribution = [
-    { range: "0-5s", count: 12 },
-    { range: "5-10s", count: 8 },
-    { range: "10-20s", count: 6 },
-    { range: "20-30s", count: 3 },
-    { range: "30+s", count: 1 },
+    { range: "0-5s", count: times.filter((t) => t >= 0 && t < 5).length },
+    { range: "5-10s", count: times.filter((t) => t >= 5 && t < 10).length },
+    { range: "10-20s", count: times.filter((t) => t >= 10 && t < 20).length },
+    { range: "20-30s", count: times.filter((t) => t >= 20 && t < 30).length },
+    { range: "30+s", count: times.filter((t) => t >= 30).length },
   ]
 
   return (
@@ -125,7 +123,9 @@ export default function TimeAnalysis() {
               {timeAnalysisData.map((row, idx) => (
                 <tr key={idx}>
                   <td className="number">{row.no}</td>
-                  <td className="question">{row.question}</td>
+                  <td className="question" title={row.question?.replace(/<[^>]*>/g, '') || ''}>
+                    {renderHTML(row.question)}
+                  </td>
                   <td className="time">{row.time}s</td>
                   <td className="percent">{row.percent.toFixed(2)}%</td>
                 </tr>
