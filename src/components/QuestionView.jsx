@@ -19,12 +19,10 @@ function QuestionView({ section, sectionId, timeLeft, profile, onSectionEnd, res
   const [noOptionsSelected, setNoOptionsSelected] = useState(false);
   const timeLeftRef = useRef(timeLeft);
 
-  // Update ref when timeLeft changes
   useEffect(() => {
     timeLeftRef.current = timeLeft;
   }, [timeLeft]);
 
-  // Initialize question when section or question changes
   useEffect(() => {
     if (!section || !section.questions[questionIdx]) return;
     
@@ -82,22 +80,18 @@ function QuestionView({ section, sectionId, timeLeft, profile, onSectionEnd, res
 
         const timeTakenMs = answerData?.timeTaken || 0;
         const timeTakenSeconds = Math.round(timeTakenMs / 1000);
-        const durationLeftMinutes = Number((timeLeftRef.current / 60).toFixed(2));
 
         await triggerAnswerQuestion({
           data: {
             questionId: question.questionId,
             sectionId: section.sectionId,
             studentAnswer: studentAnswer,
-            time: timeTakenSeconds,
-            durationLeft: durationLeftMinutes
+            time: timeTakenSeconds
           },
           headers: {
             'Authorization': `Bearer ${eid}`
           }
         }).unwrap();
-        
-        // Reset the 30-second interval when answer is submitted
         if (resetTimeUpdateInterval) resetTimeUpdateInterval();
         if (startTimeUpdateInterval) startTimeUpdateInterval();
       } catch (error) {

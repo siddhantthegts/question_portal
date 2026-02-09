@@ -9,19 +9,16 @@ function AppContent() {
   
   useEffect(() => {
     if (location.pathname === '/solutions') {
-      // Add classes when analytics portal is active
       document.documentElement.classList.add('analytics-portal-active');
       document.body.classList.add('analytics-portal-active');
       document.getElementById('root')?.classList.add('analytics-portal-active');
     } else {
-      // Remove classes when not on analytics portal
       document.documentElement.classList.remove('analytics-portal-active');
       document.body.classList.remove('analytics-portal-active');
       document.getElementById('root')?.classList.remove('analytics-portal-active');
     }
     
     return () => {
-      // Cleanup on unmount
       document.documentElement.classList.remove('analytics-portal-active');
       document.body.classList.remove('analytics-portal-active');
       document.getElementById('root')?.classList.remove('analytics-portal-active');

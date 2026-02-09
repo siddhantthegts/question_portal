@@ -24,11 +24,11 @@ export const api = createApi({
         }),
         answerQuestion: build.mutation({
             query: ({ data, headers }) => {
-                if (!data.questionId || !data.sectionId || data.studentAnswer === undefined || data.time === undefined) {
-                    console.error("Missing required fields in data for answering question", data);
+                const hasRequired = data.questionId && data.sectionId && data.studentAnswer !== undefined && data.time !== undefined;
+                if (!hasRequired) {
+                    console.error("Missing required fields for answer: questionId, sectionId, studentAnswer, time", data);
                     return;
                 }
-                
                 return {
                     url: `/create/exam-question-answer`,
                     method: 'POST',
@@ -40,6 +40,24 @@ export const api = createApi({
                 console.log("response from backend for question answer", res)
                 return res;
             },
+        }),
+        updateExamDuration: build.mutation({
+            query: ({ data, headers }) => ({
+                url: `/create/exam-question-answer/update-duration`,
+                method: 'POST',
+                body: data,
+                headers
+            }),
+            transformResponse: (res) => res,
+        }),
+        setSectionOrder: build.mutation({
+            query: ({ data, headers }) => ({
+                url: `/create/exam-question-answer/set-section-order`,
+                method: 'POST',
+                body: data,
+                headers
+            }),
+            transformResponse: (res) => res,
         }),
         getExamQuestionAnswers: build.query({
             query: ({ attemptId, headers }) => {
@@ -58,4 +76,4 @@ export const api = createApi({
     keepUnusedDataFor: 300
 })
 
-export const { useGetExamQuery, useAnswerQuestionMutation, useGetExamQuestionAnswersQuery } = api;
+export const { useGetExamQuery, useAnswerQuestionMutation, useUpdateExamDurationMutation, useSetSectionOrderMutation, useGetExamQuestionAnswersQuery } = api;

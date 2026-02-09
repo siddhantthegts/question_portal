@@ -6,24 +6,28 @@ import Calculator from '../components/Calculator.jsx';
 import SectionSummaryModal from '../components/SectionSummaryModal.jsx';
 import CATSubmissionWarningModal from '../components/CATSubmissionWarningModal.jsx';
 import './QuestionPage.css';
-import { useGetExamQuery, useAnswerQuestionMutation } from '../store/api.js';
+import { useGetExamQuery, useAnswerQuestionMutation, useUpdateExamDurationMutation, useSetSectionOrderMutation } from '../store/api.js';
 import { useNavigate } from 'react-router-dom';
 import { getExamConfig, sectionOrderers, sectionLockRules } from '../config/examConfig.js';
 import QuestionView from '../components/QuestionView.jsx';
+import NMATSectionOrderStep from '../components/NMATSectionOrderStep.jsx';
 
 function ExamPage() {
   const { eid } = useParams();
   const navigate = useNavigate();
   const [triggerAnswerQuestion] = useAnswerQuestionMutation();
+  const [updateExamDuration] = useUpdateExamDurationMutation();
   const answers = useSelector((state) => state.test.answers);
   const { startTimes } = useSelector((state) => state.test);
 
-  const { data, error, isLoading } = useGetExamQuery({
+  const { data, error, isLoading, refetch: refetchExam } = useGetExamQuery({
     url: 'exam-section-question',
     headers: {
       Authorization: `Bearer ${eid}`
     }
   });
+
+  const [setSectionOrder, { isPending: isSectionOrderSubmitting }] = useSetSectionOrderMutation();
 
   const [descriptive, setDescriptive] = useState('');
 
@@ -46,9 +50,26 @@ function ExamPage() {
     return data?.data?.lastAttemptQuestion || null;
   }, [data]);
 
+  const attemptExam = useMemo(() => data?.data?.attemptExam ?? null, [data]);
+
   const examAttendId = useMemo(() => {
-    return data?.data?.examAttendId || null;
-  }, [data]);
+    return attemptExam?.id ?? data?.data?.examAttendId ?? null;
+  }, [data, attemptExam]);
+
+  const attemptCurrentSectionId = useMemo(() => {
+    return attemptExam?.currentSectionId ?? data?.data?.currentSectionId ?? null;
+  }, [data, attemptExam]);
+
+  const attemptSectionOrder = useMemo(() => {
+    return attemptExam?.sectionOrder ?? data?.data?.sectionOrder ?? null;
+  }, [data, attemptExam]);
+
+  const attemptRemainingTime = useMemo(() => {
+    const raw = attemptExam?.remainingTime ?? data?.data?.remainingTime;
+    if (raw == null) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? Math.max(0, Math.round(n)) : null;
+  }, [data, attemptExam]);
 
   const exam = useMemo(() => {
     if (!data?.data?.allData) return null;
@@ -60,11 +81,11 @@ function ExamPage() {
     let sections = examData.sections.map(sec => ({
         sectionId: sec.sectionId,
         sectionName: sec.sectionName,
-      durationLeft: sec.durationLeft !== undefined && sec.durationLeft !== null ? Number(sec.durationLeft) : null, //durationLeft in minutes (can be decimal like 34.5)
+      durationLeft: sec.durationLeft !== undefined && sec.durationLeft !== null ? Number(sec.durationLeft) : null,
       sectionDuration: Number(sec.sectionDuration), 
       time: sec.durationLeft !== undefined && sec.durationLeft !== null 
-        ? Math.floor(Number(sec.durationLeft) * 60 + 0.5) // Convert minutes to seconds (supports decimals: 34.5 min = 2070 sec, +0.5 for proper rounding)
-        : Number(sec.sectionDuration) * 60, // minute to seconds
+        ? Math.floor(Number(sec.durationLeft) * 60 + 0.5)
+        : Number(sec.sectionDuration) * 60,
         questions: sec.question.map(q => ({
           questionId: q.id,
           type: q.type,
@@ -79,25 +100,30 @@ function ExamPage() {
           direction: q.direction,
         }))
     }));
-    
-    // Order sections based on exam type (e.g., CAT: VARC -> DILR -> QA)
-    const orderSections = sectionOrderers[examType] || sectionOrderers.default;
-    sections = orderSections(sections);
+    if (Array.isArray(attemptSectionOrder) && attemptSectionOrder.length > 0) {
+      const orderMap = new Map(
+        attemptSectionOrder.map((sectionId, index) => [String(sectionId), index])
+      );
+      sections = [...sections].sort((a, b) => {
+        const aIndex = orderMap.has(String(a.sectionId)) ? orderMap.get(String(a.sectionId)) : Number.MAX_SAFE_INTEGER;
+        const bIndex = orderMap.has(String(b.sectionId)) ? orderMap.get(String(b.sectionId)) : Number.MAX_SAFE_INTEGER;
+        return aIndex - bIndex;
+      });
+    } else {
+      const orderSections = sectionOrderers[examType] || sectionOrderers.default;
+      sections = orderSections(sections);
+    }
     
     let examDurationLeft = examData.durationLeft !== undefined && examData.durationLeft !== null 
       ? Number(examData.durationLeft) 
       : null;
     
-    // For SNAP exams, set default 60 minutes if examDurationLeft is null
     if (examType === 'SNAP' && examDurationLeft === null) {
-      examDurationLeft = 60; // 60 minutes default for SNAP
+      examDurationLeft = 60;
     }
     
-    // Initialize section locks based on exam type
     const getLockRules = sectionLockRules[examType] || sectionLockRules.default;
     const initialLocks = getLockRules(sections);
-    
-    // Convert index-based locks to sectionId-based locks
     const locksBySectionId = {};
     sections.forEach((sec, idx) => {
       locksBySectionId[sec.sectionId] = initialLocks[idx] || false;
@@ -111,13 +137,16 @@ function ExamPage() {
       examDurationLeft: examDurationLeft, 
       durationScope: examConfig.durationScope,
       sections: sections,
-      initialLocks: locksBySectionId
+      initialLocks: locksBySectionId,
+      attemptCurrentSectionId: attemptCurrentSectionId,
+      attemptRemainingTime: attemptRemainingTime,
+      attemptSectionOrder: attemptSectionOrder
     };
-  }, [data]);
+  }, [data, attemptSectionOrder, attemptCurrentSectionId, attemptRemainingTime]);
 
 
-  const [currentSectionId, setCurrentSectionId] = useState(null); // Use sectionId instead of index
-  const [sectionLocks, setSectionLocks] = useState({}); // Track which sections are locked by sectionId
+  const [currentSectionId, setCurrentSectionId] = useState(null);
+  const [sectionLocks, setSectionLocks] = useState({});
   const dispatch = useDispatch();
   const { candidateResponse } = useSelector((state) => state.test);
   const [showCalc, setShowCalc] = useState(false);
@@ -125,16 +154,16 @@ function ExamPage() {
   const [summaryData, setSummaryData] = useState(null);
   const [isTimeoutSubmission, setIsTimeoutSubmission] = useState(false);
   const [showCATWarningModal, setShowCATWarningModal] = useState(false);
-  const pendingSectionEnd = useRef(null); // Store the section end action to execute after modal
-  const [timeLeft, setTimeLeft] = useState(null); // Start as null to prevent auto-submit on initial render
-  const timeLeftRef = useRef(0); // Ref to store current timeLeft for interval access
+  const pendingSectionEnd = useRef(null);
+  const [timeLeft, setTimeLeft] = useState(null);
+  const timeLeftRef = useRef(0);
   const sectionEnded = useRef(false);
-  const timerStartedRef = useRef(false); // Track if timer has started to avoid auto-submit on initial 0
+  const timerStartedRef = useRef(false);
   const [initialPositionSet, setInitialPositionSet] = useState(false);
-  const timeUpdateIntervalRef = useRef(null); // Ref to store 30-second interval timer
-  const positionSetRef = useRef(false); // Ref to track if position was set (prevents multiple sets)
-  const currentSectionRef = useRef(null); // Ref to store current section for interval access
-  const examTimerInitializedRef = useRef(false); // Ref to track if exam-level timer has been initialized
+  const timeUpdateIntervalRef = useRef(null);
+  const positionSetRef = useRef(false);
+  const currentSectionRef = useRef(null);
+  const examTimerInitializedRef = useRef(false);
 
 
   useEffect(() => {
@@ -147,12 +176,10 @@ function ExamPage() {
     }
   }, [data, resumeExamData, lastResponse, examAttendId, dispatch]);
 
-  // Initialize section locks when exam loads
   useEffect(() => {
     if (exam?.initialLocks) {
       setSectionLocks(exam.initialLocks);
     }
-    // Reset exam timer initialization when exam changes
     examTimerInitializedRef.current = false;
   }, [exam]);
 
@@ -165,8 +192,7 @@ function ExamPage() {
       return;
     }
     
-    positionSetRef.current = true; // Mark that we're setting position to prevent re-runs
-
+    positionSetRef.current = true;
     let lastModuleIndex = 0;
     let lastQuestionIndex = 0;
     let positionFound = false;
@@ -175,9 +201,6 @@ function ExamPage() {
       acc[curr.sectionId] = curr.questions.reduce((a, current, questionIndex) => {
 
         const resExist = resumeExamData && resumeExamData[curr.sectionId]?.find(r => String(r.questionId) === String(current.questionId));
-        
-        // Only use lastResponse if it exists AND we haven't already set position
-        // This prevents resume data from overriding fresh exam start
         if (lastResponse && String(lastResponse.sectionId) === String(curr.sectionId) && String(lastResponse.questionId) === String(current.questionId)) {
           lastModuleIndex = moduleIndex;
           lastQuestionIndex = questionIndex;
@@ -191,11 +214,6 @@ function ExamPage() {
             studentAnswer: resExist.studentAnswer,
             questionType: current.type
           }));
-          
-
-          if (current.type !== 'MCQ' && resExist.studentAnswer) {
-            // This will be handled by the restoreAnswer action
-          }
         }
         
 
@@ -218,17 +236,23 @@ function ExamPage() {
 
     let targetSectionIndex = 0;
     let targetQuestionIndex = 0;
-    
-    // Determine target position
-    // IMPORTANT: Only use lastResponse if it actually exists and has valid data
-    // For fresh exams (no lastResponse), always start at index 0 (VARC)
-    if (lastResponse && lastResponse.sectionId && lastResponse.questionId) {
+    let hasAttemptSection = false;
+    if (exam.attemptCurrentSectionId != null && exam.attemptCurrentSectionId !== '') {
+      const attemptSectionIndex = exam.sections.findIndex(
+        (sec) => String(sec.sectionId) === String(exam.attemptCurrentSectionId)
+      );
+      if (attemptSectionIndex !== -1) {
+        targetSectionIndex = attemptSectionIndex;
+        targetQuestionIndex = 0;
+        hasAttemptSection = true;
+        positionFound = true;
+      }
+    }
+    if (!hasAttemptSection && lastResponse && lastResponse.sectionId && lastResponse.questionId) {
       if (positionFound) {
-        // We found the exact position in the reduce loop
         targetSectionIndex = lastModuleIndex;
         targetQuestionIndex = lastQuestionIndex;
       } else {
-        // Try to find by sectionId and questionId
         const sectionIndexById = exam.sections.findIndex(sec => String(sec.sectionId) === String(lastResponse.sectionId));
         if (sectionIndexById !== -1) {
           const foundSection = exam.sections[sectionIndexById];
@@ -241,22 +265,14 @@ function ExamPage() {
         }
       }
     }
-    
-    // For fresh exams (no lastResponse) or if position not found, start at section 0 (VARC)
-    if (!lastResponse || !lastResponse.sectionId || !positionFound) {
-      // Fresh exam - always start at section 0 (first section in ordered array = VARC)
+    if (!hasAttemptSection && (!lastResponse || !lastResponse.sectionId || !positionFound)) {
       targetSectionIndex = 0;
       targetQuestionIndex = 0;
     }
-    
-
-    // Only check for sections with time left if resuming an exam
-    // For fresh exams, always start at section 0 regardless of durationLeft
-    if (lastResponse && positionFound) {
+    if (!hasAttemptSection && lastResponse && positionFound) {
       const shouldCheckDurationLeft = exam.durationScope === 'section' || exam.examDurationLeft !== null;
       
       if (shouldCheckDurationLeft) {
-        // Check if target section has time left
         const targetSection = exam.sections[targetSectionIndex];
         let targetSectionDurationLeft = null;
         
@@ -269,8 +285,6 @@ function ExamPage() {
         }
         
         const targetHasTimeLeft = targetSectionDurationLeft === null || targetSectionDurationLeft > 0;
-        
-        // If target section has no time, find first section with time
         if (!targetHasTimeLeft) {
           let foundSectionWithTime = false;
           
@@ -293,9 +307,7 @@ function ExamPage() {
               break;
         }
           }
-          
           if (!foundSectionWithTime) {
-            // Pass examId, token, and examAttendId when navigating to solutions
             const examId = exam?.examId || data?.data?.allData?.examId;
             navigate("/solutions", { state: { examId, token: eid, examAttendId } });
             return;
@@ -303,16 +315,10 @@ function ExamPage() {
         }
       }
     }
-    
-
-    // Set current section by sectionId instead of index
     const targetSection = exam.sections[targetSectionIndex];
     if (targetSection) {
-      // Check if target section is locked - if so, find first unlocked section
       const targetIsLocked = exam.initialLocks && exam.initialLocks[targetSection.sectionId] === true;
-      
       if (targetIsLocked) {
-        // Find first unlocked section
         for (let i = 0; i < exam.sections.length; i++) {
           const section = exam.sections[i];
           const isLocked = exam.initialLocks && exam.initialLocks[section.sectionId] === true;
@@ -330,66 +336,63 @@ function ExamPage() {
     setInitialPositionSet(true);
   }, [exam, resumeExamData, lastResponse, dispatch, initialPositionSet, navigate]);
 
-
-
-
-  // Helper to find section by ID
   const getSectionById = useCallback((sectionId) => {
     if (!exam || !sectionId) return null;
     return exam.sections.find(sec => String(sec.sectionId) === String(sectionId)) || null;
   }, [exam]);
 
-  // Get current section object
   const currentSection = useMemo(() => {
     const section = getSectionById(currentSectionId);
-    // Update ref so interval callback always has latest section
     currentSectionRef.current = section;
     return section;
-  }, [currentSectionId, getSectionById]);
+  }, [currentSectionId, getSectionById, exam]);
 
-  // Timer effect - updates when section changes
   useEffect(() => {
     if (!exam || !currentSection) return;
 
     let initialTime = currentSection.time;
+    const hasAttemptRemainingTime = typeof exam.attemptRemainingTime === 'number' && exam.attemptRemainingTime >= 0;
+    const isAttemptSection = exam.attemptCurrentSectionId != null &&
+      String(exam.attemptCurrentSectionId) === String(currentSection?.sectionId);
     
-    if (exam.durationScope === 'exam' && exam.examDurationLeft !== null) {
-      if (exam.examDurationLeft > 0) {
-        // For exam-level scope, preserve existing time if timer was already initialized
-        // Otherwise, use examDurationLeft (in minutes) converted to seconds
+    if (exam.durationScope === 'exam') {
+      if (hasAttemptRemainingTime) {
         if (examTimerInitializedRef.current && timeLeftRef.current > 0) {
-          // Preserve the current time when switching sections
           initialTime = timeLeftRef.current;
         } else {
-          // First time initialization - use examDurationLeft
+          initialTime = exam.attemptRemainingTime;
+          examTimerInitializedRef.current = true;
+        }
+      } else if (exam.examDurationLeft !== null) {
+      if (exam.examDurationLeft > 0) {
+        if (examTimerInitializedRef.current && timeLeftRef.current > 0) {
+          initialTime = timeLeftRef.current;
+        } else {
           initialTime = Math.floor(exam.examDurationLeft * 60);
           examTimerInitializedRef.current = true;
         }
       } else {
-        // Exam time is up
         initialTime = 0;
+      }
       }
     } else if (exam.durationScope === 'section') {
       initialTime = currentSection.time;
-      examTimerInitializedRef.current = false; // Reset for section-level scope
+      if (hasAttemptRemainingTime && isAttemptSection) {
+        initialTime = exam.attemptRemainingTime;
+      }
+      examTimerInitializedRef.current = false;
     }
-
-    // Reset timer state before setting new time (but preserve timeLeft for exam-level scope)
     sectionEnded.current = false;
-    timerStartedRef.current = false; // Set to false first to prevent race condition with auto-submit
-
+    timerStartedRef.current = false;
     setTimeLeft(initialTime);
     timeLeftRef.current = initialTime;
-
-    // Only start timer if there's time left
     if (initialTime > 0) {
     const timer = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
           clearInterval(timer);
-          sectionEnded.current = true;
-            timerStartedRef.current = false;
-            timeLeftRef.current = 0;
+          timerStartedRef.current = false;
+          timeLeftRef.current = 0;
           return 0;
         }
           const newTime = prev - 1;
@@ -410,7 +413,6 @@ function ExamPage() {
         timerStartedRef.current = false;
       };
     } else {
-      // If no time left, don't start timer
       timerStartedRef.current = false;
       return () => {
         sectionEnded.current = true;
@@ -425,28 +427,17 @@ function ExamPage() {
     };
   }, [currentSectionId, exam, currentSection]);
 
-
-  // Question initialization is now handled in QuestionView component
-
-  // Function to reset the 30-second time update interval
   const resetTimeUpdateInterval = useCallback(() => {
-    // Clear existing interval if any
     if (timeUpdateIntervalRef.current) {
       clearInterval(timeUpdateIntervalRef.current);
       timeUpdateIntervalRef.current = null;
     }
   }, []);
 
-  // Function to start the 30-second time update interval
   const startTimeUpdateInterval = useCallback(() => {
     if (!exam) return;
-    
-    // Clear any existing interval first
     resetTimeUpdateInterval();
-
-    // Set up new 30-second interval
     timeUpdateIntervalRef.current = setInterval(async () => {
-      // Use refs to get latest values (avoid stale closures)
       const latestSection = currentSectionRef.current;
       const latestTime = timeLeftRef.current;
 
@@ -455,34 +446,23 @@ function ExamPage() {
         return;
       }
       
-      if (!latestSection) {
-        return; // Don't clear interval, just skip this update
-      }
+      if (!latestSection) return;
       
       try {
-        // Skip if time is null or invalid
-        if (latestTime === null || latestTime === undefined || latestTime < 0) {
-          return;
-        }
-        
-        // Convert to minutes with decimal support (e.g., 2070 seconds = 34.5 minutes)
-        // Preserve decimal precision: 2070 / 60 = 34.5
-        const durationLeftMinutes = Number((latestTime / 60).toFixed(2)); // Keep as decimal (34.5), rounded to 2 decimal places
-        
-        // Send ONLY durationLeft in the payload for time updates
-        await triggerAnswerQuestion({
+        await updateExamDuration({
           data: {
-            durationLeft: durationLeftMinutes // Only send time, nothing else
+            currentSectionId: latestSection.sectionId,
+            sectionId: latestSection.sectionId
           },
           headers: {
             'Authorization': `Bearer ${eid}`
           }
         }).unwrap();
       } catch (error) {
-        console.error("Failed to update exam time:", error);
+        console.error("Failed to update exam duration:", error);
       }
-    }, 30000); // 30 seconds = 30000 milliseconds
-  }, [exam, resetTimeUpdateInterval, triggerAnswerQuestion, eid]);
+    }, 30000); // 30 seconds
+  }, [exam, resetTimeUpdateInterval, updateExamDuration, eid]);
 
   // Set up 30-second time update interval
   useEffect(() => {
@@ -491,17 +471,43 @@ function ExamPage() {
       resetTimeUpdateInterval();
       return;
     }
-    
-    // Start the interval when exam is ready, section exists, and timer has been initialized
     startTimeUpdateInterval();
-    
-    // Cleanup on unmount or when dependencies change
     return () => {
       resetTimeUpdateInterval();
     };
   }, [exam, currentSectionId, currentSection, timeLeft, startTimeUpdateInterval, resetTimeUpdateInterval]);
 
-  // Calculate section summary statistics
+  useEffect(() => {
+    if (!exam || !currentSection || sectionEnded.current) return;
+
+    const handleUnload = () => {
+      const section = currentSectionRef.current;
+      if (!section) return;
+      resetTimeUpdateInterval();
+      const baseUrl = typeof import.meta.env?.VITE_API_BASE_URL === 'string' ? import.meta.env.VITE_API_BASE_URL : 'https://catmock.com/panel';
+      const url = `${baseUrl}/create/exam-question-answer/update-duration`;
+      const body = JSON.stringify({
+        currentSectionId: section.sectionId,
+        sectionId: section.sectionId,
+        isPaused: true
+      });
+      fetch(url, {
+        method: 'POST',
+        body,
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${eid}` },
+        keepalive: true
+      }).catch(() => {});
+    };
+
+    window.addEventListener('beforeunload', handleUnload);
+    window.addEventListener('pagehide', handleUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+      window.removeEventListener('pagehide', handleUnload);
+    };
+  }, [exam, currentSectionId, eid, resetTimeUpdateInterval]);
+
   const calculateSectionSummary = useCallback((section) => {
     if (!section || !section.questions) {
       return { attempted: 0, unanswered: 0, total: 0 };
@@ -512,9 +518,6 @@ function ExamPage() {
 
     section.questions.forEach((question) => {
       const answer = answers[question.questionId];
-      // Check if answer exists and has a valid value
-      // For MCQ: optionIndex should be a number (0 or greater)
-      // For descriptive: descriptiveText should be a non-empty string
       const hasAnswer = answer && (
         (typeof answer.optionIndex === 'number' && answer.optionIndex >= 0) ||
         (answer.descriptiveText && typeof answer.descriptiveText === 'string' && answer.descriptiveText.trim() !== '')
@@ -540,26 +543,18 @@ function ExamPage() {
     setShowSummaryModal(true);
   }, [calculateSectionSummary]);
 
-  // Actually end the section (called after modal confirmation)
   const proceedWithSectionEnd = useCallback((isTimeout = false) => {
     if (!exam || !currentSection) return;
-    
-    // For CAT exams, double-check that time has expired before allowing section end
     if (exam.examType === 'CAT') {
-      // Only allow if time is actually exhausted (timeLeft === 0)
       if (timeLeft !== null && timeLeft > 0) {
-        // Time is not exhausted - prevent section end and show warning
         console.warn('CAT exam: Cannot end section until time is exhausted. Time remaining:', timeLeft);
         setShowCATWarningModal(true);
         setShowSummaryModal(false); // Close summary modal
         return;
       }
     }
-    
-    // Find current section index
     const currentSectionIndex = exam.sections.findIndex(sec => String(sec.sectionId) === String(currentSectionId));
     if (currentSectionIndex === -1) {
-      // Pass examId, token, and examAttendId when navigating to solutions
       const examId = exam?.examId || data?.data?.allData?.examId;
       navigate("/solutions", { state: { examId, token: eid, examAttendId } });
       return;
@@ -576,14 +571,12 @@ function ExamPage() {
       if (currentSectionIndex < exam.sections.length - 1) {
         const nextSection = exam.sections[currentSectionIndex + 1];
         if (nextSection) {
-          newLocks[nextSection.sectionId] = false; // Unlock next section
+          newLocks[nextSection.sectionId] = false;
         }
       }
       
       return newLocks;
     });
-    
-    // For CAT exams, ensure time is exhausted before moving to next section
     if (exam.examType === 'CAT') {
       if (timeLeft !== null && timeLeft > 0) {
         console.warn('CAT exam: Cannot move to next section until time is exhausted. Time remaining:', timeLeft);
@@ -591,12 +584,9 @@ function ExamPage() {
         return;
       }
     }
-    
     let nextSectionId = null;
     const shouldCheckDurationLeft = exam.durationScope === 'section' || exam.examDurationLeft !== null;
-    
     if (shouldCheckDurationLeft) {
-      // Find next section with time left
       for (let i = currentSectionIndex + 1; i < exam.sections.length; i++) {
         const section = exam.sections[i];
         let sectionDurationLeft = null;
@@ -615,7 +605,6 @@ function ExamPage() {
         }
       }
     } else {
-      // Find next section without checking time
       if (currentSectionIndex < exam.sections.length - 1) {
         nextSectionId = exam.sections[currentSectionIndex + 1].sectionId;
       }
@@ -624,7 +613,6 @@ function ExamPage() {
     if (nextSectionId) {
       setCurrentSectionId(nextSectionId);
     } else {
-      // Pass examId, token, and examAttendId when navigating to solutions
       const examId = exam?.examId || data?.data?.allData?.examId;
       navigate("/solutions", { state: { examId, token: eid, examAttendId } });
     }
@@ -632,73 +620,89 @@ function ExamPage() {
 
   const handleSectionEnd = useCallback((isTimeout = false) => {
     if (!exam || !currentSection) return;
-    
-    console.log('🔍 handleSectionEnd:', { isTimeout, timeLeft, examType: exam.examType });
-    
-    // For SNAP exams, when timeout occurs, navigate directly to solutions
     if (exam.examType === 'SNAP' && isTimeout && timeLeft === 0) {
-      console.log('✅ SNAP: Time exhausted, navigating to solutions');
       const examId = exam?.examId || data?.data?.allData?.examId;
       navigate("/solutions", { state: { examId, token: eid, examAttendId } });
       return;
     }
-    
-    // For CAT exams, only allow submission when time is exhausted
     if (exam.examType === 'CAT') {
-      // Check if time is still remaining
       if (timeLeft !== null && timeLeft > 0) {
-        // Time is still remaining - show warning modal and prevent submission
-        console.log('⚠️ CAT: Time remaining, showing warning modal');
         setShowCATWarningModal(true);
         return;
       }
-      // Time is exhausted (timeLeft === 0) - show section summary modal
       if (timeLeft === 0) {
-        console.log('✅ CAT: Time exhausted, showing section summary');
-        showSectionSummary(currentSection, true); // Pass true for isTimeout
+        showSectionSummary(currentSection, true);
         return;
       }
     }
-    
-    // For non-CAT exams, show summary modal
     showSectionSummary(currentSection, isTimeout);
   }, [exam, currentSection, showSectionSummary, timeLeft, navigate, eid, examAttendId, data]);
-  
-  // Handle CAT warning modal close - just close the modal, don't proceed
+
   const handleCATWarningClose = useCallback(() => {
     setShowCATWarningModal(false);
-    // User stays on current section - cannot proceed until time is exhausted
   }, []);
 
-
-  // Auto-submit when time runs out - but only if timer was actually started and running
   useEffect(() => {
-    // Only trigger if:
-    // 1. timeLeft is 0 (time ran out) AND timeLeft is not null (was actually set by timer, not initial state)
-    // 2. Section hasn't already ended
-    // 3. Timer was actually started (not just initial state)
-    // 4. We have a valid exam, handler, and currentSection
-    // Only trigger if timeLeft was actually set (not null) and reached 0
-    // This prevents auto-submit from triggering on initial render when timeLeft is null
-    if (timeLeft !== null && 
-        timeLeft === 0 && 
-        !sectionEnded.current && 
-        timerStartedRef.current && 
-        exam && 
-        currentSection && 
+    if (timeLeft !== null &&
+        timeLeft === 0 &&
+        !sectionEnded.current &&
+        timerStartedRef.current &&
+        exam &&
+        currentSection &&
         handleSectionEnd &&
-        currentSectionId) { // Ensure we have a valid section ID
+        currentSectionId) {
       sectionEnded.current = true;
       timerStartedRef.current = false;
-      setTimeout(() => {
-        handleSectionEnd(true); // Pass true to indicate timeout
-      }, 100);
+      const currentSectionIndex = exam.sections.findIndex(sec => String(sec.sectionId) === String(currentSectionId));
+      if (currentSectionIndex !== -1 && currentSectionIndex < exam.sections.length - 1) {
+        const nextSection = exam.sections[currentSectionIndex + 1];
+        if (nextSection) {
+          updateExamDuration({
+            data: {
+              currentSectionId: nextSection.sectionId,
+              sectionId: nextSection.sectionId
+            },
+            headers: { Authorization: `Bearer ${eid}` }
+          }).catch((err) => console.error('Failed to update section on timeout:', err));
+        }
+      }
+      setTimeout(() => handleSectionEnd(true), 100);
     }
-  }, [timeLeft, exam, handleSectionEnd, currentSection, currentSectionId]);
+  }, [timeLeft, exam, handleSectionEnd, currentSection, currentSectionId, updateExamDuration, eid]);
 
+  const handleSectionOrderConfirm = useCallback(
+    async (sectionOrder) => {
+      try {
+        await setSectionOrder({
+          data: { sectionOrder },
+          headers: { Authorization: `Bearer ${eid}` }
+        }).unwrap();
+        await refetchExam();
+      } catch (err) {
+        console.error('Failed to save section order:', err);
+      }
+    },
+    [eid, setSectionOrder, refetchExam]
+  );
 
   if (isLoading) return <p>Loading...</p>;
   if (error || !exam) return <p>Exam not found</p>;
+
+  const showNmatSectionOrder =
+    exam.examType === 'NMAT' &&
+    (!attemptSectionOrder || !Array.isArray(attemptSectionOrder) || attemptSectionOrder.length === 0);
+  if (showNmatSectionOrder) {
+    return (
+      <div className="question-container">
+        <NMATSectionOrderStep
+          sections={exam.sections}
+          onConfirm={handleSectionOrderConfirm}
+          isSubmitting={isSectionOrderSubmitting}
+        />
+      </div>
+    );
+  }
+
   if (!currentSection || !currentSection.questions.length) {
     return <p>No questions in this section</p>;
   }
@@ -764,8 +768,6 @@ function ExamPage() {
         startTimeUpdateInterval={startTimeUpdateInterval}
       />
       {showCalc && <Calculator onClose={() => setShowCalc(false)} />}
-      
-      {/* CAT Submission Warning Modal */}
       <CATSubmissionWarningModal
         isOpen={showCATWarningModal}
         onClose={handleCATWarningClose}
@@ -781,7 +783,6 @@ function ExamPage() {
         }}
         onContinue={() => {
           setShowSummaryModal(false);
-          // Pass isTimeout flag to proceedWithSectionEnd
           proceedWithSectionEnd(isTimeoutSubmission);
           setSummaryData(null);
         }}

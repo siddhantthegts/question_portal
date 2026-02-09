@@ -1,11 +1,6 @@
 
 export const sectionOrderers = {
-  /**
-   * CAT exam: Order sections as VARC -> DILR -> QA
-   */
   CAT: (sections) => {
-    // Define exact order for CAT: VARC -> DILR -> QA
-    // Section names from backend are: "VARC", "DILR", "QA"
     const orderMap = {
       'VARC': 0,
       'DILR': 1,
@@ -22,21 +17,10 @@ export const sectionOrderers = {
       return aOrder - bOrder;
     });
   },
-
-  /**
-   * Default: No ordering, return sections as-is
-   */
   default: (sections) => [...sections],
 };
 
-/**
- * Section locking rules
- * Returns an object mapping section index to lock status (true = locked, false = unlocked)
- */
 export const sectionLockRules = {
-  /**
-   * CAT: Only first section (index 0) is unlocked initially
-   */
   CAT: (sections) => {
     const locks = {};
     sections.forEach((sec, idx) => {
@@ -44,10 +28,6 @@ export const sectionLockRules = {
     });
     return locks;
   },
-
-  /**
-   * SNAP: All sections unlocked
-   */
   SNAP: (sections) => {
     const locks = {};
     sections.forEach((sec, idx) => {
@@ -55,10 +35,6 @@ export const sectionLockRules = {
     });
     return locks;
   },
-
-  /**
-   * NMAT: Sections at index 0 and 2 are unlocked
-   */
   NMAT: (sections) => {
     const locks = {};
     sections.forEach((sec, idx) => {
@@ -66,10 +42,6 @@ export const sectionLockRules = {
     });
     return locks;
   },
-
-  /**
-   * CMAT: All sections unlocked (default behavior)
-   */
   CMAT: (sections) => {
     const locks = {};
     sections.forEach((sec, idx) => {
@@ -77,10 +49,6 @@ export const sectionLockRules = {
     });
     return locks;
   },
-
-  /**
-   * Default: All sections unlocked
-   */
   default: (sections) => {
     const locks = {};
     sections.forEach((sec, idx) => {
@@ -90,10 +58,6 @@ export const sectionLockRules = {
   },
 };
 
-/**
- * DurationLeft scope configuration
- * Determines whether durationLeft is applied at exam-level or section-level
- */
 export const durationLeftScope = {
   CAT: 'section',      // CAT uses section-level durationLeft
   SNAP: 'exam',        // SNAP uses exam-level durationLeft
@@ -102,11 +66,6 @@ export const durationLeftScope = {
   default: 'section',   // Default to section-level
 };
 
-/**
- * Get exam configuration
- * @param {string} examType - The exam type (CAT, SNAP, CMAT, NMAT, etc.)
- * @returns {object} Configuration object with orderer, lockRule, and durationScope
- */
 export const getExamConfig = (examType) => {
   const normalizedType = (examType || '').toUpperCase();
   
