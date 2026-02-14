@@ -82,10 +82,8 @@ function ExamPage() {
         sectionId: sec.sectionId,
         sectionName: sec.sectionName,
       durationLeft: sec.durationLeft !== undefined && sec.durationLeft !== null ? Number(sec.durationLeft) : null,
-      sectionDuration: Number(sec.sectionDuration), 
-      time: sec.durationLeft !== undefined && sec.durationLeft !== null 
-        ? Math.floor(Number(sec.durationLeft) * 60 + 0.5)
-        : Number(sec.sectionDuration) * 60,
+      sectionDuration: Number(sec.sectionDuration),
+      time: Number(sec.sectionDuration) * 60,
         questions: sec.question.map(q => ({
           questionId: q.id,
           type: q.type,
