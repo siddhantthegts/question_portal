@@ -21,5 +21,4 @@ Here this screen offers Data Analysis and to show student how much time he/she t
 <h2>Screen 4:</h2>
 <br>
 This is section wise Graphical representation of how many correct and incorrect attempts were made along with percentage count and also it is for CAT specific exam so it have one more fields of Percentile which have separate implementation becuase it counts based on all students who have given this exam. It can be removed where not needed.
-<img src='Screenshot 2026-05-09 191949.png
-'/>
+<img src='Screenshot 2026-05-09 191949.png'/>
