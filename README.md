@@ -1,34 +1,24 @@
-# React + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
-
-Token to use to test this exam portal to fetch exam from live backend database is given below:
-
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleGFtSWQiOjE2OSwic3R1ZGVudElkIjoiNjE2IiwiaWF0IjoxNzU1MDMzMTUxfQ.4_zbpK5F7n9hzP9FiRi_eCfq0AcNjpkjoBAEEsfCBcY
-
-Difficult Mock 6 token:
-
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleGFtSWQiOjE3Mywic3R1ZGVudElkIjoiNjE2IiwiaWF0IjoxNzY1MDUzNTY1fQ.PD8INY3M3VzTefIUVBCqDz6F8bZDt4t5zr1OWxlgDq8
+This is question portal specifically designed for CAT Exams but it is exam agnostic. It is not dependednt on exclusively on CAT exams it can be used for any exams and can also be intgrated with other competitive examination becuase it covers displaying of questions and review of questions and displaying graphs based on right and wrong selected answers and also most of Frontend logic is written based on question selection by logic I mean state management and tracking is based on wether selection was write or wrong to track time taken if backend changes then behanviour of this codebase will be same and requires little change so basically it is made by keeping one thing in mind if changes required we just Plug that in and code is still functional. All we require from bacekend is array of MCQs and then it start working with all logic intact. Here are some screenshots attached and explanation of screens.
 
 
-SNAP EXAM TOKEN
+Screen 1:
+Below image shows how questions appear on the scrren and how much we answered and not answered shows on display
 
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleGFtSWQiOjE5Miwic3R1ZGVudElkIjoiNjE2IiwiaWF0IjoxNzU1MzIwMzg1fQ.Vu9VnHVZJuq1KvzXs5d_TYjf8_UmsNPeNGnU6EbQ-So
+<img src ='./Screenshot 2026-05-09 191341.png'/>
+<br/>
+
+Screen 2:
+This screen offers result page how result should be displayed on the scrren along with answer selected it will give more details if it have solution or wrong answer then it shows whats right answer and all. It is question-wise.
+
+<img src ='./Screenshot 2026-05-09 191929.png'> <br/>
+<img src='Screenshot 2026-05-09 191937.png'/>
+Screen 3:
+
+Here this screen offers Data Analysis and to show student how much time he/she took to solve particular problem and also overall time taken by them.
+<img src='Screenshot 2026-05-09 191943.png'/>
 
 
-NMAT EXAM TOKEN
-
-eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleGFtSWQiOjIwNywic3R1ZGVudElkIjoiNjE2IiwiaWF0IjoxNzY3ODE5NzQzfQ.R0D_Tmf1m8XPfZDAQnwSV9j0s3ckntsrSZVIiZnD1wY
+Screen 4:
+This is section wise Graphical representation of how many correct and incorrect attempts were made along with percentage count and also it is for CAT specific exam so it have one more fields of Percentile which have separate implementation becuase it counts based on all students who have given this exam. It can be removed where not needed.
+<img src='Screenshot 2026-05-09 191949.png
+'/>
